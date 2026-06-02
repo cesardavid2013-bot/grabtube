@@ -7,7 +7,7 @@ app.use(cors());
 app.use(express.json());
 
 app.post('/download', async (req, res) => {
-  const { urls, format, quality, start } = req.body;
+  const { urls, format, quality, start, end } = req.body;
 
   if (!urls || urls.length === 0) {
     return res.status(400).json({ error: "No hay enlaces" });
@@ -17,23 +17,35 @@ app.post('/download', async (req, res) => {
 
   for (const url of urls) {
     try {
-      const options = { output: '%(title)s.%(ext)s' };
+      const options = { 
+        output: '%(title)s.%(ext)s',
+        noWarnings: true 
+      };
 
+      // Formato
       if (format === 'mp3') {
         options.extractAudio = true;
         options.audioFormat = 'mp3';
       } else if (quality !== 'best') {
-        options.format = `bestvideo[height<=${quality}]+bestaudio`;
+        options.format = `bestvideo[height<=${quality}]+bestaudio/best`;
       }
 
-      if (parseInt(start) > 0) {
-        options.downloadSections = `*${start}-`;
+      // Recortar video/audio (Inicio y Fin)
+      if (parseInt(start) > 0 || parseInt(end) > 0) {
+        const startSec = parseInt(start) || 0;
+        const endSec = parseInt(end) || null;
+        
+        if (endSec) {
+          options.downloadSections = `*${startSec}-${endSec}`;
+        } else {
+          options.downloadSections = `*${startSec}-`;
+        }
       }
 
       await exec(url, options);
       console.log(`✅ Descargado: ${url}`);
     } catch (error) {
-      console.error(`❌ Error: ${url}`, error.message);
+      console.error(`❌ Error con ${url}:`, error.message);
     }
   }
 });
